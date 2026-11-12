@@ -292,6 +292,29 @@ where
     }
 }
 
+/// [`serve`](Self::serve) for a `--listen` server: returns the created `Peer`
+/// so the caller can track it for event broadcast, and sets `peer` too.
+pub async fn serve_listen<R, W>(
+    host: Arc<Host>,
+    dispatcher: Dispatcher,
+    peer: Arc<OnceLock<Peer>>,
+    reader: R,
+    writer: W,
+) -> Peer
+where
+    R: tokio::io::AsyncRead + Unpin + Send + 'static,
+    W: tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    let handler = Arc::new(ServerHandler { host: host.clone(), dispatcher, peer: peer.clone() });
+    let p = Peer::connect(reader, writer, handler);
+    let _ = peer.set(p.clone());
+    p.closed().await;
+    for window in host.projects.read().keys() {
+        host.mcp_reports.forget_window(window);
+    }
+    p
+}
+
 /// Sends a window's events to the client as `event` notifications.
 pub fn event_sink(peer: Arc<OnceLock<Peer>>, window: Option<String>) -> ide_core::SharedSink {
     Arc::new(PeerSink { peer, window })
