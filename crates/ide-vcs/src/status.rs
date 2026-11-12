@@ -125,6 +125,9 @@ fn gix_status(r: &Repo, ignored: &IgnoredNames) -> IdeResult<Entries> {
                             ChangeKind::Conflicted
                         }
                         EntryStatus::Change(WtChange::Removed) => ChangeKind::Deleted,
+                        // `content_change` is `None` when only the executable bit
+                        // changed — git reports no content diff, so neither do we.
+                        EntryStatus::Change(WtChange::Modification { content_change: None, .. }) => continue,
                         EntryStatus::Change(_) => ChangeKind::Modified,
                         EntryStatus::IntentToAdd => ChangeKind::Added,
                         EntryStatus::NeedsUpdate(_) => continue,
